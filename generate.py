@@ -7,6 +7,7 @@ def tail(n, iterable):
 from functools import reduce
 from functools import lru_cache
 from operator import mul
+from itertools import chain
 
 def _extended_euclidean_algorithm ( a , b , sa = 1 , ta = 0 , sb = 0 , tb = 1 ) :
 
@@ -36,6 +37,7 @@ def extended_euclidean_algorithm ( a , b ) :
             assert(y > 0)
         yield d, x, y
 
+@lru_cache(maxsize=None)
 def egcd ( a , b ):
     assert(a >= b)
     it = tail(2, extended_euclidean_algorithm(a, b))
@@ -44,50 +46,82 @@ def egcd ( a , b ):
     assert(_ == 0)
     return (r, sa, ta, sb, tb)
 
+def gcd ( a , b ):
+    return egcd(a, b)[0]
+
+# greedy
+def greedy(n):
+    m = set()
+    for i in range(n,1,-1):
+        if all(map(lambda j: gcd(2**j-1,2**i-1) == 1, m)):
+            m.add(i)
+
+    return m
+
+@lru_cache(maxsize=None)
+def dp(candidates, n):
+    if not candidates or n == 0: return frozenset()
+    mj = max(candidates)
+    others = candidates - {mj}
+    compatible = frozenset(filter(lambda mi: gcd(mj,mi) == 1, others))
+    return max(frozenset([mj]) | dp(compatible, n-1), dp(others, n), key=product)
+
 if __name__ == '__main__':
 
     import sys
 
-    gcd = {}
     c = {}
 
     k = int(sys.argv[1])
+    bits = int(sys.argv[2])
     for i in range(k,1,-1):
         mi = 2**i - 1
         for j in range(i+1, k+1):
             mj = 2**j - 1
             r, sa, ta, sb, tb = egcd(mj, mi)
-            gcd[(i,j)] = r
             c[(i,j)] = ta % mj
 
-    print(gcd)
     print(c)
 
 
     product = lambda iterable: reduce(mul, iterable, 1)
     score = lambda m: product(map(lambda i: 2**i - 1, m))
 
-    # greedy
-    def greedy(n):
-        m = set()
-        for i in range(n,1,-1):
-            if all(map(lambda j: gcd[(i,j)] == 1, m)):
-                m.add(i)
-
-        return m
-
-    @lru_cache(maxsize=None)
-    def dp(candidates):
-        if not candidates: return frozenset()
-        j = max(candidates)
-        others = candidates - {j}
-        compatible = frozenset(filter(lambda i: gcd[(i,j)] == 1, others))
-        return max(frozenset([j]) | dp(compatible), dp(others), key=score)
-
     for n in range(2,k+1):
         g = greedy(n)
-        print(g, sum(g), score(g))
+        print(len(g), sum(g), score(g))
 
     for n in range(2,k+1):
-        g = dp(frozenset(range(2, n+1)))
-        print(g, sum(g), score(g))
+        candidates = frozenset(filter(lambda x: x >= 3, chain(
+            (2**i-1 for i in range(n+1)),
+            (2**i-3 for i in range(n+1)),
+            # (2**i-5 for i in range(n+1)),
+            # (2**i-7 for i in range(n+1)),
+            # (2**i-9 for i in range(n+1)),
+        )))
+        g = dp(candidates, len(candidates))
+        print(len(g), product(g).bit_length(), product(g))
+
+    candidates = frozenset(filter(lambda x: x >= 3, chain(
+        (2**i-1 for i in range(k+1)),
+        (2**i-3 for i in range(k+1)),
+        # (2**i-5 for i in range(n+1)),
+        # (2**i-7 for i in range(n+1)),
+        # (2**i-9 for i in range(n+1)),
+    )))
+
+    lb = 1
+    ub = len(candidates)
+    sol = frozenset()
+    while lb < ub:
+        n = (ub + lb)//2
+        g = dp(candidates, n)
+        p = product(g)
+        bit_length = p.bit_length() - 1
+        print(lb, ub, len(g), bit_length, p)
+        if bit_length >= bits:
+            sol = g
+            ub = min(n,len(g))
+        else:
+            lb = n+1
+    print(k, bits, len(sol), sorted(sol))
