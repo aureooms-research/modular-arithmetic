@@ -1,11 +1,11 @@
 const add = (u,v) => {
     const t = (u+v) | 0;
-    return (t & 65535) + (t >> 16);
+    return ((t & 65535) + (t >> 16)) | 0;
 };
 
 const sub = (u,v) => {
     const t = (u-v) | 0;
-    return (t & 65535) + (t >> 16);
+    return ((t & 65535) + (t >> 16)) | 0;
 };
 
 const mul = (u,v) => {
